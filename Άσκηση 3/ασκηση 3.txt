@@ -1,0 +1,35 @@
+ερωτημα α
+create or replace function update_contract ()
+returns trigger as
+$BODY$
+begin
+update insurance set contract_end_date = contract_end_date + interval '1 year' where  contract_end_date =CURRENT_DATE and categoryid in (select categoryid from vehicle_category where vehicle_category.insurance_group='professional') ;
+return new;
+end;
+$BODY$
+language plpgsql;
+
+create trigger update_contract 
+after update on insurance 
+for each row execute procedure update_contract();
+update insurance set contract_start_date=contract_start_date ;
+
+ερωτημα β
+CREATE TYPE my_type AS (contract_code varchar, driver varchar, client varchar,contract_start_date date);
+
+CREATE FUNCTION getQuery() RETURNS SETOF my_type AS $$
+DECLARE 
+  my_cursor CURSOR FOR select insurance.contract_code,drivers.fullname as drivers_fullname,clients.fullname,contract_start_date from clients inner join insurance on clients.contract_code=insurance.contract_code inner join drivers on  clients.contract_code=drivers.contract_code WHERE contract_start_date >= date_trunc('month', current_date ) and contract_start_date < date_trunc('month', current_date + interval '1' month);
+
+BEGIN
+  OPEN my_cursor;
+  FETCH my_cursor INTO rec.contract_code, rec.driver,rec.client,rec.contract_start_date;   
+  WHILE FOUND LOOP
+    RETURN NEXT rec;                                 
+    FETCH my_cursor INTO rec.contract_code, rec.driver,rec.client,rec.contract_start_date;  
+  END LOOP;
+  CLOSE my_cursor;
+  RETURN;
+END;
+$$ LANGUAGE plpgsql;
+select getQuery(); 
